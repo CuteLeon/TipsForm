@@ -10,7 +10,6 @@ Public Class TipsForm
     End Enum
 
     Dim MyState As TipsState = TipsState.Hidden
-    Dim DisposeForm As Boolean = False
     Dim ShowThread As Threading.Thread ' = New Threading.Thread(AddressOf ShowTips)
     Dim HideThread As Threading.Thread ' = New Threading.Thread(AddressOf HideTips)
     Dim WaitThread As Threading.Thread ' = New Threading.Thread(AddressOf WaitForHiding)
@@ -127,7 +126,7 @@ HiddenLabel:
         IconTimer.Stop()
         GC.Collect()
         MyState = TipsState.Hidden
-        DisposeForm = True : Me.Close()
+        Me.Close()
     End Sub
 
     Private Sub ShowTips()
@@ -165,7 +164,7 @@ HiddenLabel:
             HideThread.Join()
             IconTimer.Stop()
             GC.Collect()
-            DisposeForm = True : Me.Close()
+            Me.Close()
         End If
     End Sub
 
@@ -231,7 +230,6 @@ HiddenLabel:
     End Sub
 
     Private Sub TipsForm_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
-        If DisposeForm Then Exit Sub
         e.Cancel = True
         CancelTip()
     End Sub
