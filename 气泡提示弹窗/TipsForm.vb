@@ -1,9 +1,19 @@
 ﻿Imports System.ComponentModel
 
 Public Class TipsForm
-    Dim ShowThread As Threading.Thread = New Threading.Thread(AddressOf ShowTips)
-    Dim HideThread As Threading.Thread = New Threading.Thread(AddressOf HideTips)
-    Dim WaitThread As Threading.Thread = New Threading.Thread(AddressOf WaitForHiding)
+    Private Enum TipsState
+        Showing '正在显示
+        Waitting '正在等待
+        MouseEnter '鼠标进入停止等待
+        Hiding '正在隐藏
+        Hidden '已经隐藏
+    End Enum
+
+    Dim MyState As TipsState = TipsState.Hidden
+    Dim DisposeForm As Boolean = False
+    Dim ShowThread As Threading.Thread ' = New Threading.Thread(AddressOf ShowTips)
+    Dim HideThread As Threading.Thread ' = New Threading.Thread(AddressOf HideTips)
+    Dim WaitThread As Threading.Thread ' = New Threading.Thread(AddressOf WaitForHiding)
 
     Dim TitleFont As Font = New Font("微软雅黑", 18.0!, System.Drawing.FontStyle.Bold)
     Dim TitlePoint As PointF = New PointF(0, 18)
@@ -17,8 +27,6 @@ Public Class TipsForm
 
     Dim TipsBitmap As Bitmap
     Dim TipsInfoAera As Bitmap
-    Dim TipsGraphics As Graphics
-    Dim TipsInfoGraphics As Graphics
     Dim InfoAeraRectangle As Rectangle = New Rectangle(95, 5, 203, 88)
     Dim IconBackgroundRectangle As Rectangle = New Rectangle(18, 14, 70, 70)
     Dim IconRectangle As Rectangle = New Rectangle(26, 22, 54, 54)
@@ -26,11 +34,9 @@ Public Class TipsForm
     Dim CloseRecangle As Rectangle = New Rectangle(311, 41, 25, 25)
     Dim CloseBitmap As Bitmap = My.Resources.TipsRes.TipsCloseButton_0
     Dim TipsTimeOut As Integer
-    Dim TipsShown As Boolean = False
 
     Dim HiddenLocation As Point
     Dim ShownLocation As Point
-    Dim CloseMe As Boolean = False
 
     Public Enum TipsIconType
         Infomation = 0     '消息
@@ -39,76 +45,89 @@ Public Class TipsForm
         Critical = 3            '错误
     End Enum
 
-    Public Sub PopupTips(ByVal TipTitle As String, ByVal TipIcon As TipsIconType, ByVal TipBody As String, Optional ByVal TimeOut As Integer = 6000)
+    Public Sub PopupTips(ByVal OwnerForm As Form, ByVal TipTitle As String, ByVal TipIcon As TipsIconType, ByVal TipBody As String, Optional ByVal TimeOut As Integer = 6000)
         My.Computer.Audio.Play(My.Resources.TipsRes.TipsAlarm, AudioPlayMode.Background)
+        If Not Me.Visible Then Me.Show(OwnerForm)
 
-        If WaitThread IsNot Nothing AndAlso WaitThread.ThreadState = Threading.ThreadState.Running Then WaitThread.Abort() : WaitThread = Nothing
-        If ShowThread.ThreadState = Threading.ThreadState.Running Then
-            ShowThread.Abort()
-            ShowThread = Nothing
-            HideThread = New Threading.Thread(AddressOf HideTips)
-            HideThread.Start()
-            HideThread.Join()
-        ElseIf ShowThread.ThreadState = Threading.ThreadState.Running Then
-            HideThread.Join()
-        ElseIf TipsShown Then
-            HideThread = Nothing
-            HideThread = New Threading.Thread(AddressOf HideTips)
-            HideThread.Start()
-            HideThread.Join()
-        End If
-        IconTimer.Start()
+        Select Case MyState
+            Case TipsState.Showing
+                ShowThread.Abort()
+                ShowThread.DisableComObjectEagerCleanup()
+            Case TipsState.Waitting
+                WaitThread.Abort()
+                WaitThread.DisableComObjectEagerCleanup()
+            Case TipsState.MouseEnter
+            Case TipsState.Hiding
+                GoTo HiddingLabel
+            Case TipsState.Hidden
+                GoTo HiddenLabel
+        End Select
+        '如果已经或正在显示，需要先收回隐藏
+        MyState = TipsState.Hiding
+
+        HideThread = New Threading.Thread(AddressOf HideTips)
+        HideThread.Start()
+HiddingLabel:
+        HideThread.Join()
+        HideThread.DisableComObjectEagerCleanup()
+HiddenLabel:
+        MyState = TipsState.Showing
 
         TipsBitmap = My.Resources.TipsRes.TipsBackground
-        TipsGraphics = Graphics.FromImage(TipsBitmap)
         TipsInfoAera = My.Resources.TipsRes.TipsBackground.Clone(InfoAeraRectangle, Imaging.PixelFormat.Format32bppArgb)
-        TipsInfoGraphics = Graphics.FromImage(TipsInfoAera)
-
         TipsTimeOut = TimeOut
         TipsIcon = My.Resources.TipsRes.TipsIcons.Clone(New Rectangle(TipIcon * IconRectangle.Width, 0, IconRectangle.Width, IconRectangle.Height), Imaging.PixelFormat.Format32bppArgb)
-        TipsInfoGraphics.DrawString(TipTitle, TitleFont, TitleBrush, TitlePoint)
-        TipsInfoGraphics.DrawString(TipBody, BodyFont, BodyBrush, BodyPoint)
-        TipsGraphics.DrawImage(TipsInfoAera, InfoAeraRectangle)
-
-        TipsGraphics.DrawImage(My.Resources.TipsRes.TipsIconBackground.Clone(New Rectangle(0, 0, IconBackgroundRectangle.Width, IconBackgroundRectangle.Height), Imaging.PixelFormat.Format32bppArgb), IconBackgroundRectangle)
-        TipsGraphics.DrawImage(TipsIcon, IconRectangle)
-        TipsGraphics.DrawImage(CloseBitmap, CloseRecangle)
-
+        Using TipsInfoGraphics As Graphics = Graphics.FromImage(TipsInfoAera)
+            TipsInfoGraphics.DrawString(TipTitle, TitleFont, TitleBrush, TitlePoint)
+            TipsInfoGraphics.DrawString(TipBody, BodyFont, BodyBrush, BodyPoint)
+        End Using
+        Using TipsGraphics As Graphics = Graphics.FromImage(TipsBitmap)
+            TipsGraphics.DrawImage(TipsInfoAera, InfoAeraRectangle)
+            TipsGraphics.DrawImage(My.Resources.TipsRes.TipsIconBackground_0, IconBackgroundRectangle)
+            TipsGraphics.DrawImage(TipsIcon, IconRectangle)
+            TipsGraphics.DrawImage(CloseBitmap, CloseRecangle)
+        End Using
 
         DrawImage(Me, TipsBitmap)
+        GC.Collect()
 
-        TipsInfoGraphics.Dispose()
-        TipsGraphics.Dispose()
-        TipsBitmap.Dispose()
-
-        ShowThread = Nothing
         ShowThread = New Threading.Thread(AddressOf ShowTips)
         ShowThread.Start()
         ShowThread.Join()
 
-        TipsShown = True
+        IconTimer.Start()
         WaitThread = New Threading.Thread(AddressOf WaitForHiding)
         WaitThread.Start()
+
+        MyState = TipsState.Waitting
     End Sub
 
     Public Sub CancelTip()
-        CloseMe = True
-        If ShowThread.ThreadState = Threading.ThreadState.Running Then
-            ShowThread.Abort()
-            ShowThread = Nothing
-        ElseIf WaitThread.ThreadState = Threading.ThreadState.Running Then
-            WaitThread.Abort()
-            WaitThread = Nothing
-        End If
+        Select Case MyState
+            Case TipsState.Showing
+                ShowThread.Abort()
+                ShowThread.DisableComObjectEagerCleanup()
+            Case TipsState.Waitting
+                WaitThread.Abort()
+                WaitThread.DisableComObjectEagerCleanup()
+            Case TipsState.MouseEnter
+            Case TipsState.Hiding
+                Exit Sub
+            Case TipsState.Hidden
+                Exit Sub
+        End Select
 
-        If Not HideThread.ThreadState = Threading.ThreadState.Running Then
-            HideThread = New Threading.Thread(AddressOf HideTips)
-            HideThread.Start()
-        End If
+        MyState = TipsState.Hiding
+        '这里需要解绑鼠标移出事件，否则隐藏时会自动触发鼠标移出事件，导致窗体进入TipsState.Watting状态
+        RemoveHandler Me.MouseLeave, AddressOf TipsForm_MouseLeave
+        HideThread = New Threading.Thread(AddressOf HideTips)
+        HideThread.Start()
         HideThread.Join()
+        HideThread.DisableComObjectEagerCleanup()
         IconTimer.Stop()
         GC.Collect()
-        Me.Close()
+        MyState = TipsState.Hidden
+        DisposeForm = True : Me.Close()
     End Sub
 
     Private Sub ShowTips()
@@ -125,18 +144,12 @@ Public Class TipsForm
     End Sub
 
     Private Sub HideTips()
-        If WaitThread IsNot Nothing AndAlso WaitThread.ThreadState = Threading.ThreadState.Running Then
-            WaitThread.Abort()
-            WaitThread = Nothing
-        End If
         Me.Location = ShownLocation
         Do While Me.Left < HiddenLocation.X
             Me.Left += 20
             Threading.Thread.Sleep(10)
         Loop
         Me.Location = HiddenLocation
-
-        TipsShown = False
     End Sub
 
     Private Sub TipsForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -146,14 +159,13 @@ Public Class TipsForm
 
     Private Sub WaitForHiding()
         Threading.Thread.Sleep(TipsTimeOut)
-        If WaitThread IsNot Nothing AndAlso WaitThread.ThreadState = Threading.ThreadState.Running Then
+        If MyState = TipsState.Waitting Then
             HideThread = New Threading.Thread(AddressOf HideTips)
             HideThread.Start()
-            IconTimer.Stop()
             HideThread.Join()
-            CloseMe = True
+            IconTimer.Stop()
             GC.Collect()
-            Me.Close()
+            DisposeForm = True : Me.Close()
         End If
     End Sub
 
@@ -171,21 +183,16 @@ Public Class TipsForm
 
     Private Sub IconTimer_Tick(sender As Object, e As EventArgs) Handles IconTimer.Tick
         Static IconBackgroundIndex As Integer = 0
-        Dim TempIconBackground As Bitmap = My.Resources.TipsRes.TipsIconBackground.Clone(New Rectangle(IconBackgroundIndex * IconBackgroundRectangle.Width, 0, IconBackgroundRectangle.Width, IconBackgroundRectangle.Height), Imaging.PixelFormat.Format32bppArgb)
-
         TipsBitmap = My.Resources.TipsRes.TipsBackground
-        TipsGraphics = Graphics.FromImage(TipsBitmap)
-        TipsGraphics.DrawImage(TempIconBackground, IconBackgroundRectangle)
-        TipsGraphics.DrawImage(TipsInfoAera, InfoAeraRectangle)
-        TipsGraphics.DrawImage(TipsIcon, IconRectangle)
-        TipsGraphics.DrawImage(CloseBitmap, CloseRecangle)
-
+        Using TipsGraphics As Graphics = Graphics.FromImage(TipsBitmap)
+            TipsGraphics.DrawImage(My.Resources.TipsRes.ResourceManager.GetObject("TipsIconBackground_" & IconBackgroundIndex), IconBackgroundRectangle)
+            TipsGraphics.DrawImage(TipsInfoAera, InfoAeraRectangle)
+            TipsGraphics.DrawImage(TipsIcon, IconRectangle)
+            TipsGraphics.DrawImage(CloseBitmap, CloseRecangle)
+        End Using
         DrawImage(Me, TipsBitmap)
         IconBackgroundIndex += IIf(IconBackgroundIndex = 11, -11, 1)
-
-        TipsGraphics.Dispose()
-        TipsBitmap = Nothing
-        TempIconBackground.Dispose()
+        TipsBitmap.Dispose()
         GC.Collect()
     End Sub
 
@@ -211,16 +218,20 @@ Public Class TipsForm
 
     Private Sub TipsForm_MouseEnter(sender As Object, e As EventArgs) Handles Me.MouseEnter
         WaitThread.Abort()
+        WaitThread.DisableComObjectEagerCleanup()
+        MyState = TipsState.MouseEnter
+        '绑定鼠标移出事件
+        AddHandler Me.MouseLeave, AddressOf TipsForm_MouseLeave
     End Sub
 
-    Private Sub TipsForm_MouseLeave(sender As Object, e As EventArgs) Handles Me.MouseLeave
-        If HideThread.ThreadState = Threading.ThreadState.Running Then Exit Sub
+    Private Sub TipsForm_MouseLeave(sender As Object, e As EventArgs)
         WaitThread = New Threading.Thread(AddressOf WaitForHiding)
         WaitThread.Start()
+        MyState = TipsState.Waitting
     End Sub
 
     Private Sub TipsForm_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
-        If CloseMe Then Exit Sub
+        If DisposeForm Then Exit Sub
         e.Cancel = True
         CancelTip()
     End Sub

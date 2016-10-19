@@ -160,6 +160,42 @@
   <ItemGroup>
     <None Include="Resources\TipsCloseButton_0.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_0.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_1.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_2.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_3.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_4.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_5.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_6.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_7.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_8.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_9.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_10.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\TipsIconBackground_11.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

@@ -32,7 +32,7 @@ Namespace My
         
         <Global.System.Diagnostics.DebuggerStepThroughAttribute()>  _
         Protected Overrides Sub OnCreateMainForm()
-            Me.MainForm = Global.气泡提示弹窗.TipsControler
+            Me.MainForm = Global.气泡提示弹窗.Tips_Controler
         End Sub
     End Class
 End Namespace
